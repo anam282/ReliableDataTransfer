@@ -1,0 +1,44 @@
+1. Built and tested on machines : ubuntu1604-008, ubuntu1604-006
+
+2. Both Go Back N and Selective Repeat protocols have been implemented
+
+3. Go Back N: This implementation of sender uses a Queue in order to maintain the packets in the window. The timer has
+              been implemented with the help of the system clock. The time at which there is a timeout is set before
+              sending packets (time = System.currentTime() + timeout). After the window is full, the sender waits for
+              the remaining portion of the time before timeout (time - System.currentTime()) to receive acks. If no acks
+              arrive within that time or if timer has timed out even before the sender can begin to receive acks, a
+              SocketTimeout exception is thrown. The timer is reset and all packets are restranmitted as a result. If an
+              ack is received, the sender window slides, the timer is reset and more packets are sent till window is full
+              again.
+
+              The receiver side has a simple implementation. It waits till is receives the next expected packet. If the
+              packet is in sequence, it sends the ack with seq number of packet. Otherwise sends the ack for the last
+              packet it received in sequence.
+
+4. Selective Repeat: SR sender has been implemented using a priority queue and a hash map. Each packet has a timeout
+                     property which denotes the time at which it will expire. At the time of sending each packet,
+                     packet.timeout is set to (System.currentTime() + timeout) and the packet is pushed in the priority
+                     queue. The priority queue arranges packets in ascending order according to the timeout property. So
+                     the packet which is going to timeout first is always at the head of the queue. Therefore the
+                     priority queue keeps track of the next packet which is going to time out. The hashmap is used to
+                     keep track of all the packets currently in the window.
+                     The sender sends packets untill window is full. Then is looks at the priority queue to see which
+                     packet will timeout first. It sets the time for which it will wait for an ack as (timeout of packet
+                     at the head of queue - the current time). If it receives an ack for any packet, that packet will be
+                     removed from the queue. If the packet is in sequence then the sender's window will slide. The next
+                     step is to check if the window is still full, if yes the sender again waits for ack. Otherwise, it
+                     sends more packets.
+                     If a packet has timed out before the sender can wait for an ack, or if no ack arrives during the
+                     waiting period, an exception is thrown and only the packets that have been timed out are
+                     retransmitted.
+
+                     The receiver in SR used a map to keep track of which packets have been received in the window and
+                     slides the window if when in sequence packets are received. Acks are sent only if the packet
+                     sequence is in current window or previous window.
+
+5. This implementation only works with java version of the channel emulator. The other version sends one packet from the
+   sender to receiver and hangs.
+
+6. Although, SR does perform better that GBN but the difference is not very noticeable.
+   Due to the way Selective Repeat has been implemented here, all packets are sent almost at the same time and they end
+   up timing out at the same time. Therefore at timeout, most packets end up being retransmitted.
